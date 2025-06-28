@@ -1,4 +1,38 @@
+
+
+
 #!/bin/bash
+
+# =========================
+# Obsidian Encryptor Script
+# =========================
+#
+# This script securely backs up and syncs your Obsidian vault using encryption and Git.
+#
+# Supported Environments:
+#   - Linux
+#   - macOS
+#   - Windows (via WSL or Git Bash)
+#
+# Not Supported:
+#   - Windows PowerShell or Command Prompt (cmd.exe)
+#
+# Windows Setup:
+#   - Install Git Bash: https://gitforwindows.org/
+#   - Or use WSL: https://docs.microsoft.com/en-us/windows/wsl/
+#   - Install dependencies with Chocolatey (https://chocolatey.org/) or Scoop (https://scoop.sh/):
+#       choco install git gnupg nano tar pigz gh
+#       or
+#       scoop install git gpg nano tar pigz gh
+#
+# The script will check your environment and dependencies before running.
+
+# Detect if running in Git Bash, WSL, or Unix-like shell
+if [[ "$OSTYPE" != "msys" && "$OSTYPE" != "cygwin" && "$OSTYPE" != "linux-gnu"* && "$OSTYPE" != "darwin"* ]]; then
+  echo "This script must be run in Git Bash, WSL, or a Unix-like shell. Exiting."
+  exit 1
+fi
+
 
 # Define paths
 CONFIG_DIR="$HOME/.obsidian_vault_manager"  # Directory to store configuration
@@ -11,16 +45,18 @@ check_required_programs() {
   REQUIRED_PROGRAMS=("git" "gpg" "nano" "tar" "pigz" "gh")
   for program in "${REQUIRED_PROGRAMS[@]}"; do
     if ! command -v "$program" &> /dev/null; then
-      echo "$program is not installed."
-      read -rp "Would you like to install $program? (y/n): " install_choice
-      if [[ "$install_choice" == "y" || "$install_choice" == "Y" ]]; then
-        sudo pacman -S "$program" --noconfirm
-      else
-        echo "$program is required. Exiting."
-        exit 1
+      echo "Error: $program is not installed. Please install it manually."
+      if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+        echo "On Windows, you can use Chocolatey (https://chocolatey.org/) or Scoop (https://scoop.sh/) to install missing tools."
+        echo "Example: choco install $program   or   scoop install $program"
       fi
+      MISSING=1
     fi
   done
+  if [ "$MISSING" = "1" ]; then
+    echo "One or more required programs are missing. Exiting."
+    exit 1
+  fi
 }
 
 # Function to get or set the vault path
@@ -117,7 +153,14 @@ initialize_git_repo() {
 # Function to encrypt and push to Git
 encrypt_and_push() {
   while true; do
-    TEMP_FILE=$(mktemp /tmp/encryption_key.XXXXXX)
+    # Use a cross-platform temp directory
+    if [[ -n "$TMPDIR" ]]; then
+      TEMP_FILE=$(mktemp "$TMPDIR/encryption_key.XXXXXX")
+    elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+      TEMP_FILE=$(mktemp "/tmp/encryption_key.XXXXXX")
+    else
+      TEMP_FILE=$(mktemp "/tmp/encryption_key.XXXXXX")
+    fi
     read -rsp "Enter encryption key: " ENCRYPTION_KEY
     echo
     read -rsp "Confirm encryption key: " ENCRYPTION_KEY_CONFIRM
