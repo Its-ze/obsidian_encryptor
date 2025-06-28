@@ -1,0 +1,3 @@
+# Ignore encrypted vault archives and config files
+vault.tar.gz.gpg
+.obsidian_vault_manager/
